@@ -560,3 +560,53 @@ The renderer and platform may change, while the underlying application/state mod
 
 The experiment therefore tests not only whether ARKlight can stream state into a UI, but whether that mechanism can serve as the foundation for an application runtime independent of the final rendering platform.
 
+## 16. Implementation Status (Stage 1–2)
+
+This section is a log of what was actually built, checked against the §14
+roadmap, not part of the original proposal. It's appended here rather than
+edited into §1–15 so the historical proposal stays intact.
+
+**Stage 1 — persistent state stream.** Delivered as two parallel SSE paths
+against one server-side state object, not one:
+
+* Direct pipeline (`GET /state/stream`) — raw JSON, consumed by the Vue
+  reactive store. No server-side render step.
+* Bus path (`GET /fragment/stream`) — server-rendered HTML fragments,
+  consumed by real htmx (`hx-ext="sse"`, `sse-swap`). Every update pays a
+  render cost server-side.
+
+Both are driven by the same `POST /state` / `POST /state/bump` handlers.
+
+**Stage 2 — per-field routing (ARKVM.js).** The bus path was made per-field
+(`fragment:<field>` events, one swappable `<span>` per field in
+`server/render.js`) rather than one whole-panel fragment, so routing
+decisions can be made at field granularity instead of per-panel.
+`client/src/arkvm/ARKVM.js` is a small client-side runtime that:
+
+* watches real per-field bus-path latency (server `data-updated-at` vs.
+  browser arrival time);
+* the first time a field's latency crosses a fixed threshold (100ms),
+  detaches that field from htmx and starts driving it directly off
+  `/state/stream` JSON;
+* tells the server (`POST /fragment/exclude`) to stop rendering/sending that
+  field to that specific connection.
+
+This is a **one-way valve**: there is no demotion path back to the bus. Under
+this cost model, direct is never more expensive than bus per update (a flat
+client-side render vs. a render step that's always ≥ that, paid server-side),
+so demoting a quiet field back to bus never pays off — it can only make that
+field's per-update cost worse or equal, never better.
+
+**Explicitly not built.** No ARKlight compiler exists yet. `FIELD_RENDERERS`
+in `ARKVM.js` is a hardcoded stand-in for what such a compiler would
+eventually emit from a Python (or other) state/intent contract — the comment
+in that file marks it as the seam where compiled output would plug in.
+Per-field *render cost* (template complexity) is not yet used as a routing
+signal, only per-field *churn/latency* is — cost-based static classification
+is future work, not something this stage attempted.
+
+**Known caveat carried forward.** Latency is measured as `Date.now()` minus
+`Date.parse(data-updated-at)`, i.e. it assumes server and client clocks are
+close enough to trust the delta. True on localhost; needs revisiting (NTP or
+a monotonic scheme) before this crosses hosts.
+
