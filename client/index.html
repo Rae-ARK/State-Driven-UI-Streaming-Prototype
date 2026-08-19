@@ -11,15 +11,26 @@
     <!-- Bus path: htmx, fed by server-rendered fragments over its own
          SSE connection. Deliberately a separate DOM subtree from #app so
          the two paths never touch the same nodes — they're two
-         independent consumers of the same server-side state object. -->
+         independent consumers of the same server-side state object.
+
+         Stage 2: each field is its own swap target (fragment:<field>)
+         instead of one whole-panel div, so ARKVM.js can promote
+         individual hot fields to the direct pipeline without taking
+         the rest of the panel with them. -->
     <div hx-ext="sse" sse-connect="http://localhost:4000/fragment/stream">
-      <div id="fragment-panel" sse-swap="fragment" hx-swap="outerHTML">
-        loading bus path...
-      </div>
+      <span class="status connected">live via htmx/SSE</span>
+      <h2><span id="fragment-title" sse-swap="fragment:title" hx-swap="outerHTML">loading...</span></h2>
+      <p class="message"><span id="fragment-message" sse-swap="fragment:message" hx-swap="outerHTML">loading...</span></p>
+      <p class="counter"><span id="fragment-counter" sse-swap="fragment:counter" hx-swap="outerHTML">loading...</span></p>
+      <p class="updated"><span id="fragment-updated_at" sse-swap="fragment:updated_at" hx-swap="outerHTML">loading...</span></p>
     </div>
 
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <script src="https://unpkg.com/htmx.org/dist/ext/sse.js"></script>
     <script type="module" src="/src/main.js"></script>
+    <!-- ARKVM.js: JIT-philosophy routing layer. Watches bus-path
+         latency per field and promotes slow fields to the direct
+         pipeline. Loaded after htmx so window.htmx is available. -->
+    <script type="module" src="/src/arkvm/ARKVM.js"></script>
   </body>
 </html>
