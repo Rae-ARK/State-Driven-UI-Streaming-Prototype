@@ -5,7 +5,21 @@
     <title>State-Driven UI Streaming Prototype</title>
   </head>
   <body>
+    <!-- Direct pipeline: Vue app, fed by SSE raw JSON via sseTransport.js -->
     <div id="app"></div>
+
+    <!-- Bus path: htmx, fed by server-rendered fragments over its own
+         SSE connection. Deliberately a separate DOM subtree from #app so
+         the two paths never touch the same nodes — they're two
+         independent consumers of the same server-side state object. -->
+    <div hx-ext="sse" sse-connect="http://localhost:4000/fragment/stream">
+      <div id="fragment-panel" sse-swap="fragment" hx-swap="outerHTML">
+        loading bus path...
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://unpkg.com/htmx.org/dist/ext/sse.js"></script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

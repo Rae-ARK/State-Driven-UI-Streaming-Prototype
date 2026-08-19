@@ -4,7 +4,7 @@
 // transport here without touching any component.
 
 import { reactive } from "vue";
-import { createPollingTransport } from "../transport/pollingTransport.js";
+import { createSseTransport } from "../transport/sseTransport.js";
 
 export const remoteState = reactive({
   title: "",
@@ -20,7 +20,7 @@ let stopTransport = null;
 export function startStateStream(options = {}) {
   if (stopTransport) return stopTransport;
 
-  stopTransport = createPollingTransport(
+  stopTransport = createSseTransport(
     (data) => {
       Object.assign(remoteState, data, { connected: true, lastError: null });
     },
